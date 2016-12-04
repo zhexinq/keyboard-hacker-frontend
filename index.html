@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, shrink-to-fit=no, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Mobile Security</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="css/simple-sidebar.css" rel="stylesheet">
+
+    <!-- DataTable CSS -->
+    <link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.11.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css" />
+
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="js/bootstrap.min.js"></script>
+
+    <!-- DataTable -->
+    <script src="js/jquery.dataTables.min.js"></script>
+
+    <script type="text/javascript">
+        var testObj = [
+            {
+                "idDevice": "1a1bd682-435f-4927-bfc0-653fb8467aaf",
+                "installationDate": 1480642691000,
+                "deleteDate": "null"
+            },
+            {
+                "idDevice": "235e8670-535a-4948-b4de-8f0b65a950ce",
+                "installationDate": 1480645714000,
+                "deleteDate": "null"
+            }
+        ]
+
+        $(document).ready(function(e) {
+            // initiailize table
+            $("#db-table").DataTable({
+                // "aaData": testObj,
+                "aoColumns": [
+                    { "mDataProp": "idDevice" },
+                    { "mDataProp": "installationDate" },
+                ]
+            });
+
+            var jsonplaceholderUrl = "https://jsonplaceholder.typicode.com/posts/1/comments";
+            var queryDevicesUrl = "http://keyboard-hackers-sink-engine.herokuapp.com/api/devices";
+            var queryAppsByDeviceIdBaseUrl = "http://keyboard-hackers-sink-engine.herokuapp.com/api/messages/distinctApps/";
+
+            // update table using Ajax
+            var datatableApi = $('#db-table').dataTable().api();
+
+            // ajax call wrapper
+            function basicGetAjaxCall(url, async) {
+                return $.ajax({
+                    url: url,
+                    type: 'GET',
+                    contentType: 'text/plain',
+                    async: async,
+                    xhrFields: {
+                        withCredentials: false
+                    }
+                });
+            }
+
+            // retrieve latest device info
+            basicGetAjaxCall(queryDevicesUrl, true).then(function (newDataArray) {
+                // alert(newDataArray);
+                console.log(newDataArray);
+
+                // change millis to date
+                $.each(newDataArray, function(i, item) {
+                    console.log(item);
+                    item.installationDate = new Date(item.installationDate);
+                });
+                datatableApi.clear();
+                datatableApi.rows.add(newDataArray);
+                datatableApi.draw();
+            });
+
+            // // respond to click event
+            // $('#db-table').on('click', 'tbody tr', function() {
+            //     var deviceRowData = datatableApi.row(this).data();
+            //     alert(JSON.stringify(deviceRowData));
+            //     window.location.href = 'message.html?deviceId=' + deviceRowData.idDevice;
+            // });
+
+            $('#table-dialog').dialog({
+                width: 'auto',
+                height: 'auto',
+                autoOpen: false
+            });
+
+            $('#no-data-dialog').dialog({
+                width: 'auto',
+                height: 'auto',
+                autoOpen: false
+            });
+
+            // placeholder for currently selected device and app 
+            var deviceId = '';
+            var appName = '';
+
+            // click event on device table
+            $("#db-table").on("click", "tbody tr", function(e) {
+                e.preventDefault();
+                var tableDatas = $('td', this);
+                console.log("get table datas: " + $(tableDatas[0]).text());
+                deviceId = $(tableDatas[0]).text();
+
+                basicGetAjaxCall(queryAppsByDeviceIdBaseUrl + deviceId, false).then(function (data) {
+                    console.log(JSON.stringify(data));
+                    $('.list-group').empty();
+                    if (data.length) {
+                        $.each(data, function(i, app) {
+                            $('.list-group').append('<a href="#" class="list-group-item">' + app + '</a>');
+                        });
+                        $('.list-group').append('<a href="#" class="list-group-item">' + "all messages" + '</a>');
+                        if (!$('#submit').length) {
+                            $('#table-dialog').append('<div id="submit"><button class="btn btn-info" style="margin-left: 35%;">Select</button></div>');
+                        }
+
+                        $("#submit").click(function(e) {
+                            if (appName !== 'all messages' && appName !== '') {
+                                window.location.href = 'message.html?deviceId=' + deviceId + '&appName=' + appName;
+                            } else {
+                                window.location.href = 'message.html?deviceId=' + deviceId;
+                            }
+                        });
+
+                        $('.list-group a').click(function(e) {
+                            e.preventDefault();
+                            appName = $(this).text();
+                            // console.log($(this).text() + " clicked!");
+                            temp = $(this).text();
+                            $that = $(this);
+                            $that.parent().find('a').removeClass('active');
+                            $that.addClass('active');
+                        });
+                        $('#table-dialog').dialog("open");   
+                    } else {
+                        $('#table-dialog').dialog("close");  
+                        $('#no-data-dialog').dialog("open");
+                    }
+                });
+            });
+
+
+        });
+    </script>
+
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <div id="sidebar-wrapper">
+            <ul class="sidebar-nav">
+                <li class="sidebar-brand">
+                    <a href="#">
+                        Keyboard Hacker
+                    </a>
+                </li>
+                <li>
+                    <a href="#">Dashboard</a>
+                </li>
+                <li>
+                    <a href="#">Overview</a>
+                </li>
+                <li>
+                    <a href="#">About</a>
+                </li>
+                <li>
+                    <a href="#">Login</a>
+                </li>
+            </ul>
+        </div>
+        <!-- /#sidebar-wrapper -->
+
+        <header class="container">
+            <div class="row">
+              <h1 class="col-sm-8">Keyboard Hacker</h1>
+              <nav class="col-sm-4">
+                <p></p>
+                <a href="#menu-toggle" class="btn btn-default" id="menu-toggle">Menu</a>
+                <p></p>
+              </nav>
+            </div>
+        </header>
+        
+        <!-- Page Content -->
+        <div id="page-content-wrapper">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1>Device Table</h1>
+                        <p>
+                            <table id="db-table" class="display" cellspacing="0" width="100%">
+                                <thead>
+                                    <tr>
+                                        <th>DeviceID</th><th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+<!--                                     <tr>
+                                        <td>Tiger Nixon</td>
+                                        <td>System Architect</td>
+                                        <td>Edinburgh</td>
+                                    <tr>
+                                        <td>Garrett Winters</td>
+                                        <td>Accountant</td>
+                                        <td>Tokyo</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Ashton Cox</td>
+                                        <td>Junior Technical Author</td>
+                                        <td>San Francisco</td>
+                                    </tr> -->
+                                </tbody>
+                            </table>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /#page-content-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- dialog showing list of distinct apps for a device -->
+    <div id="table-dialog" title="Applications" hidden="hidden", style="display: table;">
+        <div class="list-group">
+
+        </div>
+    </div>
+
+<!--     <div id="table-dialog" title="Applications" hidden="hidden" class="list-group" style="display: table;">
+        <a href="#" class="list-group-item active">First item</a>
+        <a href="#" class="list-group-item">Second item</a>
+        <a href="#" class="list-group-item">Third item</a>
+
+    </div> -->
+
+    <!-- dialog no data -->
+    <div id='no-data-dialog' title="Applications" hidden="hidden" style="display: table;">
+        <div>
+            <p>No data available</p>
+        </div>
+        <div>
+            <button onclick="$('#no-data-dialog').dialog('close');" class="btn btn-info">Close</button>
+        </div>
+    </div>
+
+    <!-- Menu Toggle Script -->
+    <script>
+    $("#menu-toggle").click(function(e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
+    </script>
+
+    </script>
+</body>
+
+</html>
